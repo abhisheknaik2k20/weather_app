@@ -1,7 +1,45 @@
 import 'package:flutter/material.dart';
+import 'package:my_app/providers/service_provider.dart';
 
-class ExtraInfo extends StatelessWidget {
+class ExtraInfo extends StatefulWidget {
   const ExtraInfo({super.key});
+
+  @override
+  State<ExtraInfo> createState() => _ExtraInfoState();
+}
+
+class _ExtraInfoState extends State<ExtraInfo> {
+  String humidity = "Fetching...";
+  String windSpeed = "Fetching...";
+  String visibility = "Fetching...";
+  late final CentralizedWeatherService _weatherService;
+
+  @override
+  void initState() {
+    super.initState();
+    _weatherService = CentralizedWeatherService();
+    _weatherService.addListener(_onWeatherDataUpdated);
+    _getData();
+  }
+
+  @override
+  void dispose() {
+    _weatherService.removeListener(_onWeatherDataUpdated);
+    super.dispose();
+  }
+
+  void _onWeatherDataUpdated() {
+    if (mounted) {
+      _getData();
+    }
+  }
+
+  // This will be called when the widget is rebuilt
+  @override
+  void didUpdateWidget(ExtraInfo oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _getData();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +54,7 @@ class ExtraInfo extends StatelessWidget {
                 child: _buildInfoCard(
                   context,
                   "Humidity",
-                  "60%",
+                  "$humidity%",
                   Icons.water_drop,
                 ),
               ),
@@ -25,7 +63,7 @@ class ExtraInfo extends StatelessWidget {
                 child: _buildInfoCard(
                   context,
                   "Wind Speed",
-                  "15 km/h",
+                  "$windSpeed km/h",
                   Icons.air,
                 ),
               ),
@@ -34,7 +72,7 @@ class ExtraInfo extends StatelessWidget {
                 child: _buildInfoCard(
                   context,
                   "Visibility",
-                  "10 km",
+                  "$visibility km",
                   Icons.visibility,
                 ),
               ),
@@ -53,7 +91,6 @@ class ExtraInfo extends StatelessWidget {
   ) {
     return Container(
       padding: const EdgeInsets.all(12.0),
-
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -75,5 +112,42 @@ class ExtraInfo extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _getData() async {
+    try {
+      // Use the centralized weather service instead of direct SharedPreferences access
+      final weatherData = await _weatherService.getCurrentWeatherData();
+
+      if (weatherData != null && weatherData['current'] != null) {
+        final current = weatherData['current'];
+
+        if (mounted) {
+          setState(() {
+            humidity = current['humidity']?.toString() ?? "N/A";
+            windSpeed = current['wind_kph']?.toString() ?? "N/A";
+            visibility = current['vis_km']?.toString() ?? "N/A";
+          });
+        }
+      } else {
+        print('No weather data available from service');
+        if (mounted) {
+          setState(() {
+            humidity = "No data";
+            windSpeed = "No data";
+            visibility = "No data";
+          });
+        }
+      }
+    } catch (e) {
+      print('Error loading weather data: $e');
+      if (mounted) {
+        setState(() {
+          humidity = "Error";
+          windSpeed = "Error";
+          visibility = "Error";
+        });
+      }
+    }
   }
 }
