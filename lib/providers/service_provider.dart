@@ -1,4 +1,4 @@
-// ignore_for_file: depend_on_referenced_packages, avoid_function_literals_in_foreach_calls, unrelated_type_equality_checks
+// ignore_for_file: depend_on_referenced_packages
 
 import 'dart:convert';
 import 'dart:ui';
@@ -22,6 +22,7 @@ class CentralizedWeatherService {
 
   void addListener(VoidCallback callback) => _listeners.add(callback);
   void removeListener(VoidCallback callback) => _listeners.remove(callback);
+  // ignore: avoid_function_literals_in_foreach_calls
   void _notifyListeners() => _listeners.forEach((callback) => callback());
 
   Future<Map<String, dynamic>?> getCurrentWeatherData() => _getWeatherData(

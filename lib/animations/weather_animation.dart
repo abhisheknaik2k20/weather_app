@@ -21,13 +21,17 @@ class WeatherAnimation extends StatefulWidget {
   State<WeatherAnimation> createState() => _WeatherAnimationState();
 }
 
-class _WeatherAnimationState extends State<WeatherAnimation> {
+class _WeatherAnimationState extends State<WeatherAnimation>
+    with WidgetsBindingObserver {
   Animations animation = Animations.loading;
   late final CentralizedWeatherService _weatherService;
+  String? _lastCondition;
+  bool _hasInitialData = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _weatherService = CentralizedWeatherService()
       ..addListener(_updateAnimation);
     _updateAnimation();
@@ -35,6 +39,7 @@ class _WeatherAnimationState extends State<WeatherAnimation> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _weatherService.removeListener(_updateAnimation);
     super.dispose();
   }
@@ -46,9 +51,36 @@ class _WeatherAnimationState extends State<WeatherAnimation> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _updateAnimation();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) => SizedBox(
     height: MediaQuery.sizeOf(context).height * 0.25,
-    child: Lottie.asset(animation.path, fit: BoxFit.contain),
+    child: AnimatedSwitcher(
+      duration: const Duration(milliseconds: 500),
+      transitionBuilder: (Widget child, Animation<double> animation) {
+        return FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.8, end: 1.0).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
+            ),
+            child: child,
+          ),
+        );
+      },
+      child: Lottie.asset(
+        animation.path,
+        key: ValueKey(animation.path),
+        fit: BoxFit.contain,
+        repeat: true,
+        animate: true,
+      ),
+    ),
   );
 
   void _updateAnimation() async {
@@ -60,26 +92,88 @@ class _WeatherAnimationState extends State<WeatherAnimation> {
           weatherData?['current']?['condition']?['text'] as String?;
 
       if (condition != null && mounted) {
-        setState(() => animation = _getAnimationFromCondition(condition));
+        if (_lastCondition != condition || !_hasInitialData) {
+          _lastCondition = condition;
+          _hasInitialData = true;
+
+          final newAnimation = _getAnimationFromCondition(condition);
+
+          if (newAnimation != animation) {
+            setState(() => animation = newAnimation);
+          }
+        }
+      } else if (!_hasInitialData && mounted) {
+        setState(() => animation = Animations.loading);
       }
     } catch (e) {
-      // ignore: use_build_context_synchronously
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching weather data: $e')),
-      );
+      debugPrint('Error loading weather animation: $e');
+      if (!_hasInitialData && mounted) {
+        setState(() => animation = Animations.loading);
+      }
     }
   }
 
   Animations _getAnimationFromCondition(String condition) {
-    if (condition.contains(RegExp(r'Sunny|Clear|Partly Cloudy'))) {
+    final lowerCondition = condition.toLowerCase();
+    if (_matchesPattern(lowerCondition, [
+      'sunny',
+      'clear',
+      'partly cloudy',
+      'fair',
+      'bright',
+    ])) {
       return Animations.sunny;
     }
-    if (condition.contains(RegExp(r'Cloudy|Mist'))) return Animations.cloudy;
-    if (condition.contains(RegExp(r'Rain|Drizzle|Showers'))) {
+
+    if (_matchesPattern(lowerCondition, [
+      'cloudy',
+      'mist',
+      'overcast',
+      'fog',
+      'haze',
+      'mostly cloudy',
+    ])) {
+      return Animations.cloudy;
+    }
+
+    if (_matchesPattern(lowerCondition, [
+      'rain',
+      'drizzle',
+      'showers',
+      'precipitation',
+      'sprinkle',
+      'light rain',
+      'moderate rain',
+      'heavy rain',
+    ])) {
       return Animations.partrain;
     }
-    if (condition.contains('Snow')) return Animations.snow;
-    if (condition.contains('Thunderstorm')) return Animations.thunderStorm;
-    return Animations.loading;
+
+    if (_matchesPattern(lowerCondition, [
+      'snow',
+      'blizzard',
+      'flurries',
+      'sleet',
+      'ice',
+      'freezing',
+    ])) {
+      return Animations.snow;
+    }
+
+    if (_matchesPattern(lowerCondition, [
+      'thunderstorm',
+      'thunder',
+      'lightning',
+      'storm',
+      'severe',
+    ])) {
+      return Animations.thunderStorm;
+    }
+
+    return _hasInitialData ? Animations.sunny : Animations.loading;
+  }
+
+  bool _matchesPattern(String condition, List<String> patterns) {
+    return patterns.any((pattern) => condition.contains(pattern));
   }
 }

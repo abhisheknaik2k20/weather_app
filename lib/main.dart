@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/screens/HOME_SCREEN/home_screen.dart';
+import 'package:my_app/screens/BLACK_SCREEN/black_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() => runApp(const MyApp());
@@ -13,6 +13,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   bool _isDarkMode = true;
+
   @override
   void initState() {
     super.initState();
@@ -39,6 +40,6 @@ class _MyAppState extends State<MyApp> {
     title: 'Flutter Demo',
     debugShowCheckedModeBanner: false,
     theme: _isDarkMode ? ThemeData.dark() : ThemeData.light(),
-    home: MyHomePage(isDarkMode: _isDarkMode, onThemeToggle: _toggleTheme),
+    home: BlackScreen(isDarkMode: _isDarkMode, onThemeToggle: _toggleTheme),
   );
 }
